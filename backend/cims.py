@@ -19,8 +19,15 @@ def lookup(passport_no, country_name=None, is_foreign=True, timeout=45000):
               "consignment": None, "error": None}
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page(viewport={"width": 1400, "height": 900})
+            # Low-memory flags so headless Chromium fits a 512MB (free-tier) box.
+            browser = p.chromium.launch(headless=True, args=[
+                "--single-process", "--no-zygote", "--no-sandbox",
+                "--disable-setuid-sandbox", "--disable-dev-shm-usage",
+                "--disable-gpu", "--disable-extensions",
+                "--disable-background-networking", "--disable-crash-reporter",
+                "--disable-features=site-per-process", "--js-flags=--max-old-space-size=256",
+            ])
+            page = browser.new_page(viewport={"width": 1024, "height": 768})
             page.goto(FINDER, wait_until="networkidle", timeout=timeout)
 
             if is_foreign:
