@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CIDB Personnel Document Verifier</title>
+<style>
+  :root{--bg:#0f1e1c;--card:#fff;--teal:#1b8a7a;--teal2:#14675b;--ink:#2e263d;
+        --ok:#1e9e63;--bad:#d9483b;--warn:#d99a1e;--muted:#6b7280}
+  *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,sans-serif}
+  body{margin:0;background:linear-gradient(160deg,#0f1e1c,#14675b);min-height:100vh;color:var(--ink)}
+  header{display:flex;align-items:center;gap:12px;padding:18px 28px;background:#fff}
+  header b{color:var(--teal);font-size:20px;letter-spacing:1px}
+  header span{color:var(--muted);font-size:13px}
+  .wrap{max-width:960px;margin:32px auto;padding:0 18px}
+  .card{background:var(--card);border-radius:14px;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.25);margin-bottom:22px}
+  h1{font-size:22px;margin:0 0 4px}.sub{color:var(--muted);font-size:14px;margin:0 0 18px}
+  .drop{border:2px dashed #b9c7c4;border-radius:12px;padding:34px;text-align:center;cursor:pointer;transition:.2s}
+  .drop:hover{border-color:var(--teal);background:#f4faf8}
+  .drop input{display:none}
+  .row{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:14px}
+  label.opt{font-size:14px;color:var(--ink)}
+  button{background:var(--teal);color:#fff;border:0;border-radius:9px;padding:11px 26px;font-size:15px;cursor:pointer}
+  button:disabled{opacity:.5;cursor:default}
+  .files{font-size:13px;color:var(--muted);margin-top:10px}
+  .verdict{display:inline-block;padding:6px 16px;border-radius:20px;color:#fff;font-weight:600;font-size:14px}
+  .LEGIT{background:var(--ok)}.MISMATCH{background:var(--bad)}.NOT_FOUND{background:var(--warn)}
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:14px}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid #eef1f0;vertical-align:top}
+  th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase}
+  .tag{font-size:12px;font-weight:600;padding:2px 9px;border-radius:6px}
+  .pass{background:#e5f6ec;color:var(--ok)}.fail{background:#fbe7e4;color:var(--bad)}
+  .adv{background:#fdf3e0;color:var(--warn)}
+  .photos{display:flex;gap:20px;margin-top:16px;flex-wrap:wrap}
+  .photos figure{margin:0;text-align:center}.photos img{width:150px;height:auto;border-radius:8px;border:1px solid #e5e7eb}
+  figcaption{font-size:12px;color:var(--muted);margin-top:6px}
+  .err{color:var(--bad);font-size:14px}
+  .ref{font-size:12px;color:var(--muted);margin-top:10px}
+  .spin{display:none;margin-top:14px;color:var(--teal);font-size:14px}
+</style>
+</head>
+<body>
+<header><b>CIDB ✔ VERIFIER</b><span>Construction personnel document authenticity check — reference: CIMS CIDB</span></header>
+<div class="wrap">
+  <div class="card">
+    <h1>Verify a personnel document</h1>
+    <p class="sub">Upload the PDF containing passport / permit (IMM13P) and the CIDB registration card. The CIMS website is always the reference point.</p>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept="application/pdf" multiple>
+      <div>📄 <b>Click to choose PDF(s)</b> or drag & drop</div>
+      <div class="files" id="filelist"></div>
+    </label>
+    <div class="row">
+      <label class="opt"><input type="radio" name="ptype" value="foreign" checked> Foreign personnel (passport)</label>
+      <label class="opt"><input type="radio" name="ptype" value="local"> Local (MyKad)</label>
+      <button id="go" disabled>Verify</button>
+    </div>
+    <div class="spin" id="spin">Extracting & checking against CIMS… this can take ~30s.</div>
+  </div>
+  <div id="out"></div>
+</div>
+<script>
+const fileEl=document.getElementById('file'),go=document.getElementById('go'),
+  list=document.getElementById('filelist'),out=document.getElementById('out'),spin=document.getElementById('spin');
+let chosen=[];
+fileEl.onchange=e=>{chosen=[...e.target.files];list.textContent=chosen.map(f=>f.name).join(', ');go.disabled=!chosen.length};
+const drop=document.getElementById('drop');
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.style.borderColor='#1b8a7a'}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.style.borderColor=''}));
+drop.addEventListener('drop',e=>{chosen=[...e.dataTransfer.files];fileEl.files=e.dataTransfer.files;list.textContent=chosen.map(f=>f.name).join(', ');go.disabled=!chosen.length});
+
+go.onclick=async()=>{
+  go.disabled=true;spin.style.display='block';out.innerHTML='';
+  const fd=new FormData();
+  chosen.forEach(f=>fd.append('files',f));
+  fd.append('is_foreign', document.querySelector('input[name=ptype]:checked').value==='foreign');
+  try{
+    const r=await fetch('/verify',{method:'POST',body:fd});
+    const d=await r.json();
+    out.innerHTML=d.results.map(card).join('');
+  }catch(e){out.innerHTML='<div class="card err">Request failed: '+e+'</div>'}
+  spin.style.display='none';go.disabled=false;
+};
+
+function chk(c){return c===true?'<span class="tag pass">MATCH</span>':c===false?'<span class="tag fail">MISMATCH</span>':'<span class="tag adv">N/A</span>'}
+function card(x){
+  if(x.error && !x.checks) return `<div class="card"><b>${x.file||''}</b><p class="err">${x.error}</p></div>`;
+  const c=x.checks;
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <b>${x.file||''}</b><span class="verdict ${x.verdict}">${x.verdict.replace('_',' ')}</span>
+    </div>
+    <table><tr><th>Field</th><th>Submitted document</th><th>CIMS website (reference)</th><th>Result</th></tr>
+      <tr><td>Name</td><td>${c.name.submitted||'—'}</td><td>${c.name.website||'—'}</td><td>${chk(c.name.match)} <small>(${(c.name.similarity*100||0).toFixed(0)}%)</small></td></tr>
+      <tr><td>Passport / IMM13P</td><td>${c.passport.submitted||'—'}</td><td>${c.passport.website||'—'}</td><td>${chk(c.passport.match)}</td></tr>
+      <tr><td>Country</td><td>${c.country.submitted||'—'}</td><td>${c.country.website||'—'}</td><td>${chk(c.country.match)}</td></tr>
+      <tr><td>Registration expiry</td><td>${c.expiry.submitted||'—'}</td><td>${c.expiry.website||'—'}</td><td>${chk(c.expiry.match)}</td></tr>
+      <tr><td>Photo <small>(advisory)</small></td><td colspan=2>watermark-normalized similarity: ${c.photo.similarity!=null?(c.photo.similarity*100).toFixed(0)+'%':'—'}</td><td>${chk(c.photo.match)}</td></tr>
+    </table>
+    <div class="photos">
+      ${x.photos&&x.photos.submitted?`<figure><img src="${x.photos.submitted}"><figcaption>Submitted</figcaption></figure>`:''}
+      ${x.photos&&x.photos.website?`<figure><img src="${x.photos.website}"><figcaption>CIMS website</figcaption></figure>`:''}
+    </div>
+    <div class="ref">Reference: ${x.reference}. Photo check is advisory — the website image is watermarked & low-resolution; name, expiry and country are authoritative.</div>
+  </div>`;
+}
+</script>
+</body>
+</html>
