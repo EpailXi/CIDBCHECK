@@ -37,13 +37,35 @@ uvicorn backend.main:app --reload --port 8000
 
 Open http://localhost:8000
 
-## Deploy
+## Deploy (frontend on GitHub Pages + backend on Render)
 
-- **Code**: this GitHub repo.
-- **Runtime**: any host that allows outbound HTTPS to `cims.cidb.gov.my` and can
-  run Chromium (Render, Railway, a VPS, or your own PC). Static-only hosts
-  (GitHub Pages) cannot run the backend.
-- A `Dockerfile` is the easiest path — it bundles tesseract, poppler and Chromium.
+GitHub Pages can only serve the static frontend; the Python backend
+(Playwright + OCR) must run on a real host. This repo is wired for
+**Render (backend) + GitHub Pages (frontend)**.
+
+### 1. Backend → Render
+1. Push this repo to GitHub (done).
+2. On https://render.com → **New → Web Service → Build from a repository**,
+   pick `CIDBCHECK`. Render reads `render.yaml` and builds the `Dockerfile`
+   (bundles tesseract, poppler, Chromium). Plan: Free.
+3. When it's live, copy the service URL, e.g. `https://cidbcheck-api.onrender.com`.
+
+### 2. Frontend → GitHub Pages
+1. Edit `frontend/index.html`, find `API_BASE`, and replace
+   `REPLACE-WITH-YOUR-RENDER-URL.onrender.com` with your real Render URL.
+2. Commit & push. The included Action (`.github/workflows/pages.yml`)
+   publishes `frontend/` to Pages automatically.
+3. In the repo: **Settings → Pages → Source = GitHub Actions**.
+4. Your UI is live at `https://epailxi.github.io/CIDBCHECK/`.
+
+Notes:
+- Render's free plan sleeps when idle, so the first request after a pause takes
+  ~30–50s to wake. Paid plans stay warm.
+- The backend needs outbound HTTPS to `cims.cidb.gov.my` (Render allows this).
+
+### Or: one host, no Pages
+Deploy just the backend on Render — it also serves the UI at its own URL
+(`main.py` serves `index.html` at `/`). Skip the Pages steps entirely.
 
 ## Important notes / limitations
 

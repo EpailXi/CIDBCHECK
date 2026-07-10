@@ -60,6 +60,14 @@
   <div id="out"></div>
 </div>
 <script>
+// ── CONFIG ──────────────────────────────────────────────
+// After deploying the backend on Render, paste its URL below
+// (e.g. https://cidbcheck-api.onrender.com). When the page is
+// served by the backend itself, it uses the same origin.
+const API_BASE = location.hostname.endsWith('github.io')
+  ? 'https://REPLACE-WITH-YOUR-RENDER-URL.onrender.com'
+  : '';
+// ────────────────────────────────────────────────────────
 const fileEl=document.getElementById('file'),go=document.getElementById('go'),
   list=document.getElementById('filelist'),out=document.getElementById('out'),spin=document.getElementById('spin');
 let chosen=[];
@@ -75,7 +83,7 @@ go.onclick=async()=>{
   chosen.forEach(f=>fd.append('files',f));
   fd.append('is_foreign', document.querySelector('input[name=ptype]:checked').value==='foreign');
   try{
-    const r=await fetch('/verify',{method:'POST',body:fd});
+    const r=await fetch(API_BASE+'/verify',{method:'POST',body:fd});
     const d=await r.json();
     out.innerHTML=d.results.map(card).join('');
   }catch(e){out.innerHTML='<div class="card err">Request failed: '+e+'</div>'}
