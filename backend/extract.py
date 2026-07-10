@@ -120,12 +120,23 @@ def parse_cidb(text):
 
 # ---------------- Face crop ----------------
 
-_CASCADE = cv2.CascadeClassifier(
-    cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+def _load_cascade():
+    """Load the Haar face cascade defensively — some slim OpenCV builds lack
+    CascadeClassifier or the bundled data. A failure must not crash startup;
+    the photo check is advisory and simply degrades to N/A."""
+    try:
+        c = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        return None if c.empty() else c
+    except Exception:
+        return None
+
+
+_CASCADE = _load_cascade()
 
 
 def largest_face(img, pad=0.35):
-    if img is None:
+    if img is None or _CASCADE is None:
         return None
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     faces = _CASCADE.detectMultiScale(gray, 1.1, 4, minSize=(60, 60))
