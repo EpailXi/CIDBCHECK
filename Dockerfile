@@ -12,4 +12,6 @@ RUN pip install --no-cache-dir -r requirements.txt \
 COPY . .
 EXPOSE 8000
 # Render (and most hosts) inject $PORT; fall back to 8000 locally.
-CMD uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# --app-dir backend puts the backend package on sys.path so main.py's
+# sibling imports (extract, cims, compare, watermark) resolve.
+CMD uvicorn main:app --app-dir backend --host 0.0.0.0 --port ${PORT:-8000}

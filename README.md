@@ -32,7 +32,7 @@ No AI API key required — MRZ parsing + Tesseract OCR + OpenCV only.
 pip install -r requirements.txt
 python -m playwright install chromium      # first time only
 sudo apt-get install -y tesseract-ocr poppler-utils   # system deps
-uvicorn backend.main:app --reload --port 8000
+uvicorn main:app --app-dir backend --reload --port 8000
 ```
 
 Open http://localhost:8000
