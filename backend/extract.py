@@ -6,6 +6,7 @@ Zero external API. Strategy:
   3. OCR each page (tesseract) to locate CIDB card fields (expiry, name, country).
   4. Detect/crop the largest face on passport + CIDB pages as the reference photos.
 """
+import gc
 import os
 import re
 import subprocess
@@ -17,7 +18,7 @@ import pytesseract
 MRZ_LINE = re.compile(r"[A-Z0-9<]{28,44}")
 
 
-def pdf_to_images(pdf_path, dpi=200):
+def pdf_to_images(pdf_path, dpi=130):  # 130 keeps MRZ/expiry readable at low RAM
     out_dir = tempfile.mkdtemp(prefix="cidb_")
     prefix = os.path.join(out_dir, "page")
     subprocess.run(["pdftoppm", "-png", "-r", str(dpi), pdf_path, prefix],
@@ -26,12 +27,17 @@ def pdf_to_images(pdf_path, dpi=200):
         os.path.join(out_dir, f) for f in os.listdir(out_dir) if f.endswith(".png"))
 
 
-def _ocr(img_path):
+def _ocr(img_path, max_dim=1700):
     img = cv2.imread(img_path)
     if img is None:
         return "", None
+    h, w = img.shape[:2]
+    if max(h, w) > max_dim:                 # cap size to bound tesseract RAM
+        s = max_dim / max(h, w)
+        img = cv2.resize(img, (int(w * s), int(h * s)))
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     txt = pytesseract.image_to_string(gray)
+    del gray
     return txt, img
 
 
@@ -146,7 +152,7 @@ def largest_face(img, pad=0.35):
     px, py = int(w * pad), int(h * pad)
     x0, y0 = max(0, x - px), max(0, y - py)
     x1, y1 = min(img.shape[1], x + w + px), min(img.shape[0], y + h + py)
-    return img[y0:y1, x0:x1]
+    return img[y0:y1, x0:x1].copy()   # copy so the full page image can be freed
 
 
 def extract_document(pdf_path):
@@ -170,6 +176,12 @@ def extract_document(pdf_path):
             f = largest_face(img)
             if f is not None:
                 passport_face = f
+        del img                      # release the full page image
+        gc.collect()
+        try:
+            os.remove(p)             # and its PNG on disk
+        except OSError:
+            pass
     joined = "\n".join(full_text)
     if not cidb:
         cidb = parse_cidb(joined)
