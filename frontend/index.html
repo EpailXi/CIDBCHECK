@@ -103,13 +103,12 @@ function card(x){
       <tr><td>Passport / IMM13P</td><td>${c.passport.submitted||'—'}</td><td>${c.passport.website||'—'}</td><td>${chk(c.passport.match)}</td></tr>
       <tr><td>Country</td><td>${c.country.submitted||'—'}</td><td>${c.country.website||'—'}</td><td>${chk(c.country.match)}</td></tr>
       <tr><td>Registration expiry</td><td>${c.expiry.submitted||'—'}</td><td>${c.expiry.website||'—'}</td><td>${chk(c.expiry.match)}</td></tr>
-      <tr><td>Photo <small>(advisory)</small></td><td colspan=2>watermark-normalized similarity: ${c.photo.similarity!=null?(c.photo.similarity*100).toFixed(0)+'%':'—'}</td><td>${chk(c.photo.match)}</td></tr>
     </table>
     <div class="photos">
       ${x.photos&&x.photos.submitted?`<figure><img src="${x.photos.submitted}"><figcaption>Submitted</figcaption></figure>`:''}
       ${x.photos&&x.photos.website?`<figure><img src="${x.photos.website}"><figcaption>CIMS website</figcaption></figure>`:''}
     </div>
-    <div class="ref">Reference: ${x.reference}. Photo check is advisory — the website image is watermarked & low-resolution; name, expiry and country are authoritative.</div>
+    <div class="ref">Reference: ${x.reference}. Photos are shown for your own visual comparison. Verdict is based on record existence + registration expiry + passport/country.</div>
   </div>`;
 }
 </script>

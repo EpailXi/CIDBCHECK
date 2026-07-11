@@ -137,11 +137,8 @@ def verify(submitted, website):
                           "website": website.get("passport_masked"),
                           "match": pm}
 
-    psim = photo_similarity(submitted.get("passport_face"),
-                            website.get("face"))
-    checks["photo"] = {"similarity": psim,
-                       "match": (psim is not None and psim >= PHOTO_THRESHOLD),
-                       "advisory": True}
+    # Photos are shown side-by-side for manual visual comparison only —
+    # no automated similarity score (per request).
 
     # Authoritative = every check that is actually decidable (match True/False;
     # None = not checkable, e.g. name). Expiry must be present and matching.
