@@ -115,9 +115,16 @@ def verify(submitted, website):
 
     nsub = submitted.get("name")
     nweb = website.get("name")
-    nsim = name_similarity(nsub, nweb)
-    checks["name"] = {"submitted": nsub, "website": nweb,
-                      "similarity": nsim, "match": nsim >= NAME_THRESHOLD}
+    if nweb:
+        nsim = name_similarity(nsub, nweb)
+        checks["name"] = {"submitted": nsub, "website": nweb,
+                          "similarity": nsim, "match": nsim >= NAME_THRESHOLD}
+    else:
+        # CIMS JSON API does not expose the registered name (it is only rendered
+        # on the encrypted server-side result page). Not checkable here.
+        checks["name"] = {"submitted": nsub, "website": None,
+                          "similarity": None, "match": None,
+                          "note": "Not provided by CIMS lookup"}
 
     checks["expiry"] = {
         "submitted": submitted.get("cidb_expiry"),
@@ -136,14 +143,15 @@ def verify(submitted, website):
                        "match": (psim is not None and psim >= PHOTO_THRESHOLD),
                        "advisory": True}
 
-    authoritative = [checks["name"]["match"], checks["expiry"]["match"],
-                     checks["country"]["match"]]
-    if pm is not None:
-        authoritative.append(pm)
+    # Authoritative = every check that is actually decidable (match True/False;
+    # None = not checkable, e.g. name). Expiry must be present and matching.
+    authoritative = [checks[k]["match"] for k in
+                     ("name", "expiry", "country", "passport")
+                     if checks[k]["match"] is not None]
 
     if not website.get("found"):
         verdict = "NOT_FOUND"
-    elif all(authoritative):
+    elif checks["expiry"]["match"] and all(authoritative):
         verdict = "LEGIT"
     else:
         verdict = "MISMATCH"

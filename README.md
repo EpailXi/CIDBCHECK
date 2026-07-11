@@ -11,8 +11,10 @@ Upload one or more PDFs. For each, the app:
 1. Converts pages to images and reads the **MRZ** (machine-readable zone) on the
    passport/permit — deterministic, no API key — to get passport number, name and
    country; OCRs the CIDB card for the registration expiry.
-2. Looks the passport up on `cims.cidb.gov.my` (Playwright drives the real form —
-   there is no public JSON API; the site encrypts the query server-side).
+2. Looks the passport up on `cims.cidb.gov.my` by calling the same JSON web
+   service the site's own front-end uses (`dataservice.asmx` searchTred /
+   searchHistory + the `/pbimage` photo). No browser/Chromium needed, so it runs
+   in well under 512 MB.
 3. Compares, using CIMS as the source of truth:
    - **Name** — fuzzy match
    - **Registration expiry** — exact date
@@ -30,7 +32,6 @@ No AI API key required — MRZ parsing + Tesseract OCR + OpenCV only.
 
 ```bash
 pip install -r requirements.txt
-python -m playwright install chromium      # first time only
 sudo apt-get install -y tesseract-ocr poppler-utils   # system deps
 uvicorn main:app --app-dir backend --reload --port 8000
 ```

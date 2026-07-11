@@ -99,7 +99,7 @@ function card(x){
       <b>${x.file||''}</b><span class="verdict ${x.verdict}">${x.verdict.replace('_',' ')}</span>
     </div>
     <table><tr><th>Field</th><th>Submitted document</th><th>CIMS website (reference)</th><th>Result</th></tr>
-      <tr><td>Name</td><td>${c.name.submitted||'—'}</td><td>${c.name.website||'—'}</td><td>${chk(c.name.match)} <small>(${(c.name.similarity*100||0).toFixed(0)}%)</small></td></tr>
+      <tr><td>Name</td><td>${c.name.submitted||'—'}</td><td>${c.name.website||'—'+(c.name.note?' <small>('+c.name.note+')</small>':'')}</td><td>${chk(c.name.match)}${c.name.similarity!=null?' <small>('+(c.name.similarity*100).toFixed(0)+'%)</small>':''}</td></tr>
       <tr><td>Passport / IMM13P</td><td>${c.passport.submitted||'—'}</td><td>${c.passport.website||'—'}</td><td>${chk(c.passport.match)}</td></tr>
       <tr><td>Country</td><td>${c.country.submitted||'—'}</td><td>${c.country.website||'—'}</td><td>${chk(c.country.match)}</td></tr>
       <tr><td>Registration expiry</td><td>${c.expiry.submitted||'—'}</td><td>${c.expiry.website||'—'}</td><td>${chk(c.expiry.match)}</td></tr>
