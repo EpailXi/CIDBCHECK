@@ -37,6 +37,12 @@
   .err{color:var(--bad);font-size:14px}
   .ref{font-size:12px;color:var(--muted);margin-top:10px}
   .spin{display:none;margin-top:14px;color:var(--teal);font-size:14px}
+  .scan{margin:6px 0 2px}
+  .bar{height:9px;background:#eef1f0;border-radius:6px;overflow:hidden}
+  .bar>i{display:block;height:100%;width:32%;border-radius:6px;
+        background:linear-gradient(90deg,var(--teal),var(--teal2));animation:slide 1.1s infinite ease-in-out}
+  @keyframes slide{0%{margin-left:-32%}100%{margin-left:100%}}
+  .stage{font-size:13px;color:var(--teal2);margin-top:8px;font-weight:500}
 </style>
 </head>
 <body>
@@ -77,17 +83,27 @@ const drop=document.getElementById('drop');
 ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.style.borderColor=''}));
 drop.addEventListener('drop',e=>{chosen=[...e.dataTransfer.files];fileEl.files=e.dataTransfer.files;list.textContent=chosen.map(f=>f.name).join(', ');go.disabled=!chosen.length});
 
+const STAGES=['Reading document…','Extracting passport & CIDB details…','Checking against CIMS CIDB…','Comparing…'];
 go.onclick=async()=>{
-  go.disabled=true;spin.style.display='block';out.innerHTML='';
-  const fd=new FormData();
-  chosen.forEach(f=>fd.append('files',f));
-  fd.append('is_foreign', document.querySelector('input[name=ptype]:checked').value==='foreign');
-  try{
-    const r=await fetch(API_BASE+'/verify',{method:'POST',body:fd});
-    const d=await r.json();
-    out.innerHTML=d.results.map(card).join('');
-  }catch(e){out.innerHTML='<div class="card err">Request failed: '+e+'</div>'}
-  spin.style.display='none';go.disabled=false;
+  go.disabled=true;spin.style.display='none';
+  const isForeign=document.querySelector('input[name=ptype]:checked').value==='foreign';
+  // one scanning card per document
+  out.innerHTML=chosen.map((f,i)=>`<div class="card" id="card${i}">
+      <div style="display:flex;justify-content:space-between;align-items:center"><b>${f.name}</b><span class="verdict" style="background:var(--teal)">SCANNING…</span></div>
+      <div class="scan"><div class="bar"><i></i></div><div class="stage" id="stage${i}">${STAGES[0]}</div></div>
+    </div>`).join('');
+  for(let i=0;i<chosen.length;i++){
+    const st=document.getElementById('stage'+i); let s=0;
+    const t=setInterval(()=>{s=Math.min(s+1,STAGES.length-1);st.textContent=STAGES[s];},1400);
+    const fd=new FormData(); fd.append('files',chosen[i]); fd.append('is_foreign',isForeign);
+    try{
+      const r=await fetch(API_BASE+'/verify',{method:'POST',body:fd});
+      const d=await r.json(); clearInterval(t);
+      document.getElementById('card'+i).outerHTML=card(d.results[0]);
+    }catch(e){ clearInterval(t);
+      document.getElementById('card'+i).outerHTML='<div class="card err"><b>'+chosen[i].name+'</b><p class="err">Request failed: '+e+'</p></div>'; }
+  }
+  go.disabled=false;
 };
 
 function chk(c){return c===true?'<span class="tag pass">MATCH</span>':c===false?'<span class="tag fail">MISMATCH</span>':'<span class="tag adv">N/A</span>'}
