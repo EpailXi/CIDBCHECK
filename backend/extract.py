@@ -97,21 +97,46 @@ COUNTRY = {"BGD": "BANGLADESH", "IDN": "INDONESIA", "IND": "INDIA",
 DATE_RE = re.compile(r"(\d{2})[/\-.](\d{2})[/\-.](\d{4})")
 
 
+def _fmt(m):
+    return f"{m.group(1)}/{m.group(2)}/{m.group(3)}"
+
+
+def _latest(dates):
+    """dates: list of (dd,mm,yyyy) tuples -> latest as dd/mm/yyyy."""
+    from datetime import date
+    best = None
+    for dd, mm, yy in dates:
+        try:
+            d = date(int(yy), int(mm), int(dd))
+        except ValueError:
+            continue
+        if best is None or d > best[0]:
+            best = (d, f"{dd}/{mm}/{yy}")
+    return best[1] if best else None
+
+
 def parse_cidb(text):
-    """Pull CIDB registration expiry, name, country from OCR text."""
+    """Pull CIDB registration expiry, name, country from OCR text.
+
+    The expiry is labelled 'Tarikh tamat pendaftaran'. On scans the date often
+    sits on a line just above/below that label, so we search a small window
+    around every TAMAT mention. Fallback: the latest date on the card (the
+    registration expiry is always the furthest-future date on a CIDB card)."""
     out = {}
     up = text.upper()
-    # expiry: line containing TAMAT (expiry) -> nearest date
-    for line in text.splitlines():
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
         if "TAMAT" in line.upper():
-            d = DATE_RE.search(line)
+            window = " ".join(lines[max(0, i - 2):i + 3])
+            d = DATE_RE.search(window)
             if d:
-                out["expiry"] = f"{d.group(1)}/{d.group(2)}/{d.group(3)}"
+                out["expiry"] = _fmt(d)
                 break
     if "expiry" not in out:
-        d = DATE_RE.search(text)
-        if d:
-            out["expiry"] = f"{d.group(1)}/{d.group(2)}/{d.group(3)}"
+        alld = DATE_RE.findall(text)          # (dd,mm,yyyy) tuples
+        latest = _latest(alld)
+        if latest:
+            out["expiry"] = latest
     # name after "NAMA PERSONEL"
     m = re.search(r"NAMA\s+PERSONEL\s*[:\-]?\s*([A-Z][A-Z ]{3,})", up)
     if m:
@@ -161,27 +186,29 @@ def extract_document(pdf_path):
     full_text = []
     mrz = None
     cidb = {}
-    passport_face = None
-    cidb_face = None
+    faces = []
     for p in pages:
         txt, img = _ocr(p)
         full_text.append(txt)
         if mrz is None:
             mrz = parse_mrz(txt)
-        if not cidb.get("expiry") and ("CIDB" in txt.upper() or "PERSONEL BINAAN" in txt.upper()):
-            cidb = {**parse_cidb(txt), **cidb} if cidb else parse_cidb(txt)
-            if cidb_face is None:
-                cidb_face = largest_face(img)
-        if passport_face is None and img is not None:
-            f = largest_face(img)
-            if f is not None:
-                passport_face = f
+        if "CIDB" in txt.upper() or "PERSONEL BINAAN" in txt.upper() \
+                or "TAMAT" in txt.upper():
+            page_cidb = parse_cidb(txt)
+            if page_cidb.get("expiry") or not cidb:
+                cidb = {**cidb, **page_cidb}     # prefer newer, esp. with expiry
+        f = largest_face(img)
+        if f is not None:
+            faces.append(f)
         del img                      # release the full page image
         gc.collect()
         try:
             os.remove(p)             # and its PNG on disk
         except OSError:
             pass
+    # document photo = the largest face found across all pages
+    passport_face = max(faces, key=lambda a: a.shape[0] * a.shape[1]) if faces else None
+    cidb_face = passport_face
     joined = "\n".join(full_text)
     if not cidb:
         cidb = parse_cidb(joined)

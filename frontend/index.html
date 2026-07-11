@@ -121,8 +121,8 @@ function card(x){
       <tr><td>Registration expiry</td><td>${c.expiry.submitted||'—'}</td><td>${c.expiry.website||'—'}</td><td>${chk(c.expiry.match)}</td></tr>
     </table>
     <div class="photos">
-      ${x.photos&&x.photos.submitted?`<figure><img src="${x.photos.submitted}"><figcaption>Submitted</figcaption></figure>`:''}
-      ${x.photos&&x.photos.website?`<figure><img src="${x.photos.website}"><figcaption>CIMS website</figcaption></figure>`:''}
+      <figure>${x.photos&&x.photos.submitted?`<img src="${x.photos.submitted}">`:`<div style="width:150px;height:180px;border:1px dashed #cbd5d1;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9aa5a1;font-size:12px;text-align:center;padding:8px">photo not detected in document</div>`}<figcaption>Document (submitted)</figcaption></figure>
+      <figure>${x.photos&&x.photos.website?`<img src="${x.photos.website}">`:`<div style="width:150px;height:180px;border:1px dashed #cbd5d1;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9aa5a1;font-size:12px;text-align:center;padding:8px">no CIMS photo</div>`}<figcaption>CIMS CIDB lookup</figcaption></figure>
     </div>
     <div class="ref">Reference: ${x.reference}. Photos are shown for your own visual comparison. Verdict is based on record existence + registration expiry + passport/country.</div>
   </div>`;
